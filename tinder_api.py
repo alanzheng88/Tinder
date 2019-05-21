@@ -12,20 +12,31 @@ headers = {
     "Accept": "application/json"
 }
 
+version = 'v2'
+
+routes = {
+  'authenticate': config.host + '/' + version + '/auth/login/facebook',
+  'profile': config.host + '/' + version + '/profile' + '?include=email_settings,spotify,contact_cards,likes,feed_control,boost,campaigns,plus_control,snap,purchase,user,onboarding,account,products,select,tinder_u,travel,instagram,super_likes,notifications,tutorials',
+  'recommendations': config.host + '/' + version + '/recs/core',
+  'meta': config.host + '/' + version + '/meta',
+  'updates': config.host + '/updates',
+}
+
 
 def get_auth_token(fb_auth_token, fb_user_id):
     if "error" in fb_auth_token:
         return {"error": "could not retrieve fb_auth_token"}
     if "error" in fb_user_id:
         return {"error": "could not retrieve fb_user_id"}
-    url = config.host + '/auth'
+    url = routes['authenticate']
     req = requests.post(url,
                         headers=headers,
                         data=json.dumps(
-                            {'facebook_token': fb_auth_token, 'facebook_id': fb_user_id})
+                            {'token': fb_auth_token, 'id': fb_user_id})
                         )
     try:
-        tinder_auth_token = req.json()["token"]
+        print(req.json())
+        tinder_auth_token = req.json()['data']['api_token']
         headers.update({"X-Auth-Token": tinder_auth_token})
         print("You have been successfully authorized!")
         return tinder_auth_token
@@ -46,7 +57,7 @@ def get_recommendations():
     Returns a list of users that you can swipe on
     '''
     try:
-        r = requests.get('https://api.gotinder.com/user/recs', headers=headers)
+        r = requests.get(routes['recommendations'], headers=headers)
         return r.json()
     except requests.exceptions.RequestException as e:
         print("Something went wrong with getting recomendations:", e)
@@ -59,7 +70,7 @@ def get_updates(last_activity_date=""):
     Format for last_activity_date: "2017-07-09T10:28:13.392Z"
     '''
     try:
-        url = config.host + '/updates'
+        url = routes['updates']
         r = requests.post(url,
                           headers=headers,
                           data=json.dumps({"last_activity_date": last_activity_date}))
@@ -73,7 +84,7 @@ def get_self():
     Returns your own profile data
     '''
     try:
-        url = config.host + '/profile'
+        url = routes['profile']
         r = requests.get(url, headers=headers)
         return r.json()
     except requests.exceptions.RequestException as e:
@@ -93,7 +104,7 @@ def change_preferences(**kwargs):
     {"photo_optimizer_enabled":false}
     '''
     try:
-        url = config.host + '/profile'
+        url = routes['profile']
         r = requests.post(url, headers=headers, data=json.dumps(kwargs))
         return r.json()
     except requests.exceptions.RequestException as e:
@@ -122,7 +133,7 @@ def get_meta_v2():
     'typing_indicator', 'profile', 'recs']
     '''
     try:
-        url = config.host + '/v2/meta'
+        url = routes['meta']
         r = requests.get(url, headers=headers)
         return r.json()
     except requests.exceptions.RequestException as e:
@@ -140,6 +151,14 @@ def update_location(lat, lon):
     except requests.exceptions.RequestException as e:
         print("Something went wrong. Could not update your location:", e)
 
+def update_location_v2(lat, lon):
+    try:
+        url = config.host + '/v2/meta'
+        r = requests.post(url, headers=headers, data=json.dumps({"lat": lat, "lon": lon, "background":False, "force_fetch_resources":True}))
+        return r.json()
+    except requests.exceptions.RequestException as e:
+        print("Something went wrong. Could not update your location:", e)
+
 def reset_real_location():
     try:
         url = config.host + '/passport/user/reset'
@@ -151,10 +170,10 @@ def reset_real_location():
 
 def get_recs_v2():
     '''
-    This works more consistently then the normal get_recommendations becuase it seeems to check new location
+    This works more consistently then the normal get_recommendations because it seeems to check new location
     '''
     try:
-        url = config.host + '/v2/recs/core?locale=en-US'
+        url = config.host + '/v2/recs/core?locale=en-CA'
         r = requests.get(url, headers=headers)
         return r.json()
     except Exception as e:
@@ -263,6 +282,7 @@ def match_info(match_id):
     except requests.exceptions.RequestException as e:
         print("Something went wrong. Could not get your match info:", e)
 
+# TODO: fix route
 def all_matches():
     try:
         url = config.host + '/v2/matches'
